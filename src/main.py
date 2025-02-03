@@ -132,7 +132,7 @@ def main():
         frame_count += 1
         
         # Display frame
-        cv2.imshow('Vision Assistant', processed_frame)
+        cv2.imshow('Prototype', processed_frame)
         
         # Break loop on 'q' press
         if cv2.waitKey(1) & 0xFF == ord('q'):
