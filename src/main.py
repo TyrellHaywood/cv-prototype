@@ -44,6 +44,14 @@ class VisionAssistant:
 
         detected_objects = []
 
+        # initialize pttsx3
+        engine = pyttsx3.init()
+        volume = engine.getProperty('volume')
+        engine.setProperty('volume', 1.0)
+
+        voices = engine.getProperty('voices')
+        engine.setProperty('voice', voices[1].id) # 1 for female, 0 for male
+
         for result in results.boxes.data.tolist():
             x1, y1, x2, y2, conf, class_id = result
             class_name = results.names[int(class_id)]
@@ -58,8 +66,13 @@ class VisionAssistant:
                     'position': position
                 })
                 
+                # debugging pttsx3
+                print(volume) 
+
                 # **LOGGING DETECTED OBJECTS**
                 print(f"Detected: {class_name} ({conf:.2f}) at {position}")
+                engine.say(f"{class_name} detected at {position}") # Speak detected object
+                engine.runAndWait()  # Ensure the speech command is processed
 
                 # Draw bounding box
                 cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
