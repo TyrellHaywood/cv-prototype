@@ -27,9 +27,22 @@ class VisionAssistant:
         
         # Define critical objects for detection
         self.critical_objects = [
-            'person', 'car', 'truck', 'bicycle', 'motorcycle',  # Road users
-            'bench', 'chair', 'table', 'stop sign', 'traffic light',  # Obstacles and signals
+            # People
+            'person',
+
+            # Vehicles
+            'car', 'truck', 'bicycle', 'motorcycle', 'bus',
+
+            # Common Furniture
+            'chair', 'table', 'bench', 'couch', 'bed', 'desk', 'cabinet', 'shelf',
+
+            # Obstructions
+            'stop sign', 'traffic light', 'wall', 'pole', 'trash can',
+
+            # Changes in Elevation
+            'stair', 'ramp', 'curb', 'escalator', 'elevator'
         ]
+
         
         # Track last announcements to prevent spam
         self.last_announcement = {}
