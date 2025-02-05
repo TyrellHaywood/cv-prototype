@@ -93,6 +93,10 @@ class VisionAssistant:
                             (int(x1), int(y1) - 10), 
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
+        # Apply edge detection
+        edges = self._detect_edges(frame)
+        frame = cv2.addWeighted(frame, 0.8, edges, 0.2, 0)
+
         # Generate warnings for detected objects
         self._generate_warnings(detected_objects)
         self.is_processing = False
@@ -110,6 +114,38 @@ class VisionAssistant:
         else:
             return "right"
     
+    def _detect_edges(self, frame):
+        
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        
+        # Improve contrast
+        equalized = cv2.equalizeHist(gray)
+
+        # Apply Gaussian blur to reduce noise
+        blurred = cv2.GaussianBlur(equalized, (5, 5), 0)
+        
+        # Canny edge detection with optimized thresholds
+        canny_edges = cv2.Canny(blurred, 75, 175)
+
+        # Laplacian edge detection (captures intensity changes)
+        laplacian_edges = cv2.Laplacian(blurred, cv2.CV_64F)
+        laplacian_edges = np.uint8(np.absolute(laplacian_edges))
+
+        # Sobel edge detection (captures directional edges)
+        sobel_x = cv2.Sobel(blurred, cv2.CV_64F, 1, 0, ksize=5)
+        sobel_y = cv2.Sobel(blurred, cv2.CV_64F, 0, 1, ksize=5)
+        sobel_edges = cv2.bitwise_or(np.uint8(np.absolute(sobel_x)), np.uint8(np.absolute(sobel_y)))
+
+        # Combine different edge maps
+        combined_edges = cv2.bitwise_or(canny_edges, laplacian_edges)
+        combined_edges = cv2.bitwise_or(combined_edges, sobel_edges)
+
+        # Convert edges to 3-channel image for overlay
+        edges_colored = cv2.cvtColor(combined_edges, cv2.COLOR_GRAY2BGR)
+
+        return edges_colored
+
+
     def _generate_warnings(self, detected_objects):
         """Generate and queue speech warnings for detected objects"""
         current_time = time.time()
