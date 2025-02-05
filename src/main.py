@@ -47,6 +47,10 @@ class VisionAssistant:
         # Track last announcements to prevent spam
         self.last_announcement = {}
         self.is_processing = False
+
+        self.edge_threshold = 10000  # Threshold for strong edge detection
+        self.last_edge_alert = 0  # Track last edge alert time
+
         
     def _tts_worker(self):
         """Worker thread for text-to-speech processing"""
@@ -95,6 +99,7 @@ class VisionAssistant:
 
         # Apply edge detection
         edges = self._detect_edges(frame)
+        self._detect_obstructions(edges)
         frame = cv2.addWeighted(frame, 0.8, edges, 0.2, 0)
 
         # Generate warnings for detected objects
@@ -145,6 +150,12 @@ class VisionAssistant:
 
         return edges_colored
 
+    def _detect_obstructions(self, edges):
+        current_time = time.time()
+        edge_strength = np.sum(edges) / 255
+        if edge_strength > self.edge_threshold and current_time - self.last_edge_alert > 3:
+            self.tts_queue.put("Obstruction ahead")
+            self.last_edge_alert = current_time
 
     def _generate_warnings(self, detected_objects):
         """Generate and queue speech warnings for detected objects"""
