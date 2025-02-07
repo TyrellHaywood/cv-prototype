@@ -47,8 +47,14 @@ class VisionAssistant:
         self.last_announcement = {}  # Object name -> timestamp
         self.detected_objects = {}  # Tracks objects with positions to avoid repeats
         self.is_processing = False
+
+
         self.edge_threshold = 10000  # Threshold for strong edge detection
         self.last_edge_alert = 0  # Track last edge alert time
+        self.edge_alert_counter = 0
+        self.edge_alert_threshold = 3  # Only alert if edges are detected for 3+ frames consecutively
+
+
         self.tracked_objects = {}  # Tracks object presence and last seen time
 
     def _generate_warnings(self, detected_objects):
@@ -163,9 +169,17 @@ class VisionAssistant:
     def _detect_obstructions(self, edges, current_time):
         """Detect strong edges and prevent repeated announcements"""
         edge_strength = np.sum(edges) / 255
-        if edge_strength > self.edge_threshold and current_time - self.last_edge_alert > 3:
+        
+        if edge_strength > self.edge_threshold:
+            self.edge_alert_counter += 1
+        else:
+            self.edge_alert_counter = 0  # Reset if obstruction disappears
+
+        # Announce only if obstruction is seen for multiple consecutive frames
+        if self.edge_alert_counter >= self.edge_alert_threshold and (current_time - self.last_edge_alert > 5):
             self.tts_queue.put("Obstruction ahead")
             self.last_edge_alert = current_time
+            self.edge_alert_counter = 0  # Reset after announcement
 
 def main():
     assistant = VisionAssistant()
