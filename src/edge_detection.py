@@ -15,7 +15,7 @@ class EdgeDetector:
 
         return cv2.cvtColor(canny_edges, cv2.COLOR_GRAY2BGR)
 
-    def detect_obstructions(self, frame, edges, current_time, tts):
+    def detect_obstructions(self, frame, edges, current_time, tts, show_overlay=True):
         """Detects strong edges and provides a bright red overlay for obstructions."""
         edge_strength = np.sum(edges) / 255
 
@@ -25,8 +25,12 @@ class EdgeDetector:
             self.edge_alert_counter = 0  # Reset if obstruction disappears
 
         if self.edge_alert_counter >= self.edge_alert_threshold:
-            red_overlay = np.zeros_like(frame, dtype=np.uint8)
-            red_overlay[:] = (0, 0, 255)  # Strong red overlay
+
+            # Show edge overlay only if if enabled
+            if show_overlay:
+                red_overlay = np.zeros_like(edges, dtype=np.uint8)
+                red_overlay[:] = (0, 0, 255)
+                edges = cv2.addWeighted(edges, 0.6, red_overlay, 0.4, 0)
 
             # Apply only on strong edges
             mask = cv2.cvtColor(edges, cv2.COLOR_BGR2GRAY) > 50

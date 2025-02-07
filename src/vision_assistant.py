@@ -11,7 +11,7 @@ class VisionAssistant:
         self.tts = SpeechProcessor()
         self.last_edge_alert = 0
 
-    def process_frame(self, frame, show_bboxes=True):
+    def process_frame(self, frame, show_bboxes=True, show_overlay=True):
         """Handles frame processing: object detection, edge detection, and speech feedback."""
         current_time = time.time()
 
@@ -21,7 +21,7 @@ class VisionAssistant:
 
         # Edge detection & obstruction warnings
         edges = self.edge_detector.detect_edges(frame)
-        self.edge_detector.detect_obstructions(frame, edges, current_time, self.tts)
+        self.edge_detector.detect_obstructions(frame, edges, current_time, self.tts, show_overlay)
 
         # Merge edges into frame
         frame = cv2.addWeighted(frame, 0.8, edges, 0.2, 0)

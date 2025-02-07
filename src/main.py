@@ -33,6 +33,9 @@ def main():
         elif key == ord('b'):  # Toggle Bounding Boxes
             show_bounding_boxes = not show_bounding_boxes
             print(f"Bounding Boxes {'ON' if show_bounding_boxes else 'OFF'}")
+        elif key == ord('o'):  # Toggle Red Overlay for Obstructions
+            show_obstruction_highlight = not show_obstruction_highlight
+            print(f"Obstruction Highlight {'ON' if show_obstruction_highlight else 'OFF'}")
 
     cap.release()
     cv2.destroyAllWindows()
