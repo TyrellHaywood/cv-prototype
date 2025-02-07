@@ -133,8 +133,13 @@ class VisionAssistant:
         
         # Apply edge detection
         edges = self._detect_edges(frame)
-        self._detect_obstructions(edges, current_time)
+
+        # Apply bright red overlay for obstructions
+        self._detect_obstructions(frame, edges, current_time)
+
+        # Merge edges into the final frame for added visibility
         frame = cv2.addWeighted(frame, 0.8, edges, 0.2, 0)
+
         
         self.is_processing = False
         return frame
@@ -166,22 +171,26 @@ class VisionAssistant:
         combined_edges = cv2.bitwise_or(combined_edges, sobel_y)
         return cv2.cvtColor(combined_edges, cv2.COLOR_GRAY2BGR)
     
-    def _detect_obstructions(self, edges, current_time):
-        """Detect strong edges and prevent repeated announcements"""
+    def _detect_obstructions(self, frame, edges, current_time):
+        """Detect strong edges and prevent repeated announcements with a bright red overlay."""
         edge_strength = np.sum(edges) / 255
-        
+
         if edge_strength > self.edge_threshold:
             self.edge_alert_counter += 1
         else:
             self.edge_alert_counter = 0  # Reset if obstruction disappears
 
-        # Announce only if obstruction is seen for multiple consecutive frames
-        
+        # Only apply highlight if obstruction is detected for multiple frames
         if self.edge_alert_counter >= self.edge_alert_threshold:
-            red_overlay = np.zeros_like(edges, dtype=np.uint8) # Create a red overlay for detected obstructions
-            red_overlay[:] = (0, 0, 255)  # Red color (BGR format)
-            edges = cv2.addWeighted(edges, 0.6, red_overlay, 0.4, 0)  # Blend with 40% transparency
+            # Create a red mask where edges are strong
+            red_overlay = np.zeros_like(frame, dtype=np.uint8)
+            red_overlay[:] = (0, 0, 255)  # Solid red color
 
+            # Apply the red overlay where strong edges exist
+            mask = cv2.cvtColor(edges, cv2.COLOR_BGR2GRAY) > 50  # Threshold edges
+            frame[mask] = cv2.addWeighted(frame, 0.4, red_overlay, 0.6, 0)[mask]  # 60% red intensity
+
+            # Announce obstruction
             if current_time - self.last_edge_alert > 5:
                 self.tts_queue.put("Obstruction ahead")
                 self.last_edge_alert = current_time
