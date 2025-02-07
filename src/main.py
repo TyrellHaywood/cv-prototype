@@ -42,31 +42,58 @@ class VisionAssistant:
             # Changes in Elevation
             'stair', 'ramp', 'curb', 'escalator', 'elevator'
         ]
-
         
         # Track last announcements to prevent spam
-        self.last_announcement = {}
+        self.last_announcement = {}  # Object name -> timestamp
+        self.detected_objects = {}  # Tracks objects with positions to avoid repeats
         self.is_processing = False
-
         self.edge_threshold = 10000  # Threshold for strong edge detection
         self.last_edge_alert = 0  # Track last edge alert time
+        self.tracked_objects = {}  # Tracks object presence and last seen time
 
-        
+    def _generate_warnings(self, detected_objects):
+        """Generate and queue speech warnings for detected objects, preventing unnecessary repeats."""
+        current_time = time.time()
+        disappeared_objects = set(self.tracked_objects.keys())  # Assume all old objects disappeared
+
+        for obj in detected_objects:
+            obj_name, obj_position = obj['name'], obj['position']
+            obj_key = f"{obj_name}_{obj_position}"
+
+            # Object is still in view, update last seen timestamp
+            if obj_key in self.tracked_objects:
+                disappeared_objects.discard(obj_key)  # It's still visible
+            else:
+                # Announce only if the object was gone for 5+ seconds before reappearing
+                last_seen_time = self.tracked_objects.get(obj_key, 0)
+                if current_time - last_seen_time > 5:
+                    message = f"{obj_name} detected {obj_position}"
+                    if obj_name in ['car', 'truck', 'motorcycle'] and obj_position == 'center':
+                        message = f"WARNING! {message}"
+
+                    self.tts_queue.put(message)
+
+            # Update object's last seen time
+            self.tracked_objects[obj_key] = current_time
+
+        # Forget objects that have disappeared for 5+ seconds
+        for obj_key in disappeared_objects:
+            if current_time - self.tracked_objects[obj_key] > 5:
+                del self.tracked_objects[obj_key]
+
     def _tts_worker(self):
         """Worker thread for text-to-speech processing"""
-        # Initialize TTS engine once for the thread
         engine = pyttsx3.init()
         engine.setProperty('volume', 1.0)
         voices = engine.getProperty('voices')
         engine.setProperty('voice', voices[1].id)  # Use female voice
         
         while True:
-            # Wait for messages in the queue
             message = self.tts_queue.get()
             engine.say(message)
             engine.runAndWait()
             self.tts_queue.task_done()
-        
+    
     def process_frame(self, frame):
         """Process a single frame with object detection"""
         if self.is_processing:
@@ -76,34 +103,33 @@ class VisionAssistant:
         
         # Run YOLO detection
         results = self.detector(frame, verbose=False)[0]
+        current_time = time.time()
         detected_objects = []
 
         for result in results.boxes.data.tolist():
             x1, y1, x2, y2, conf, class_id = result
             class_name = results.names[int(class_id)]
             
-            # Filter for critical objects with high confidence
             if class_name in self.critical_objects and conf > 0.5:
                 position = self._get_position(frame, x1, y1, x2, y2)
-                detected_objects.append({
-                    'name': class_name,
-                    'confidence': conf,
-                    'position': position
-                })
+                object_key = f"{class_name}_{position}"
+                
+                detected_objects.append({'name': class_name, 'position': position})
+                
+                # Check if this is a new detection or if enough time has passed since last detection
+                self._generate_warnings(detected_objects)
                 
                 # Draw detection visualization
                 cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
                 cv2.putText(frame, f'{class_name}: {conf:.2f}', 
                             (int(x1), int(y1) - 10), 
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-
+        
         # Apply edge detection
         edges = self._detect_edges(frame)
-        self._detect_obstructions(edges)
+        self._detect_obstructions(edges, current_time)
         frame = cv2.addWeighted(frame, 0.8, edges, 0.2, 0)
-
-        # Generate warnings for detected objects
-        self._generate_warnings(detected_objects)
+        
         self.is_processing = False
         return frame
     
@@ -120,81 +146,41 @@ class VisionAssistant:
             return "right"
     
     def _detect_edges(self, frame):
-        
+        """Detect edges using multiple edge detection techniques"""
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        
-        # Improve contrast
         equalized = cv2.equalizeHist(gray)
-
-        # Apply Gaussian blur to reduce noise
         blurred = cv2.GaussianBlur(equalized, (5, 5), 0)
-        
-        # Canny edge detection with optimized thresholds
         canny_edges = cv2.Canny(blurred, 75, 175)
-
-        # Laplacian edge detection (captures intensity changes)
-        laplacian_edges = cv2.Laplacian(blurred, cv2.CV_64F)
-        laplacian_edges = np.uint8(np.absolute(laplacian_edges))
-
-        # Sobel edge detection (captures directional edges)
-        sobel_x = cv2.Sobel(blurred, cv2.CV_64F, 1, 0, ksize=5)
-        sobel_y = cv2.Sobel(blurred, cv2.CV_64F, 0, 1, ksize=5)
-        sobel_edges = cv2.bitwise_or(np.uint8(np.absolute(sobel_x)), np.uint8(np.absolute(sobel_y)))
-
-        # Combine different edge maps
+        laplacian_edges = np.uint8(np.absolute(cv2.Laplacian(blurred, cv2.CV_64F)))
+        sobel_x = np.uint8(np.absolute(cv2.Sobel(blurred, cv2.CV_64F, 1, 0, ksize=5)))
+        sobel_y = np.uint8(np.absolute(cv2.Sobel(blurred, cv2.CV_64F, 0, 1, ksize=5)))
+        
         combined_edges = cv2.bitwise_or(canny_edges, laplacian_edges)
-        combined_edges = cv2.bitwise_or(combined_edges, sobel_edges)
-
-        # Convert edges to 3-channel image for overlay
-        edges_colored = cv2.cvtColor(combined_edges, cv2.COLOR_GRAY2BGR)
-
-        return edges_colored
-
-    def _detect_obstructions(self, edges):
-        current_time = time.time()
+        combined_edges = cv2.bitwise_or(combined_edges, sobel_x)
+        combined_edges = cv2.bitwise_or(combined_edges, sobel_y)
+        return cv2.cvtColor(combined_edges, cv2.COLOR_GRAY2BGR)
+    
+    def _detect_obstructions(self, edges, current_time):
+        """Detect strong edges and prevent repeated announcements"""
         edge_strength = np.sum(edges) / 255
         if edge_strength > self.edge_threshold and current_time - self.last_edge_alert > 3:
             self.tts_queue.put("Obstruction ahead")
             self.last_edge_alert = current_time
 
-    def _generate_warnings(self, detected_objects):
-        """Generate and queue speech warnings for detected objects"""
-        current_time = time.time()
-        
-        for obj in detected_objects:
-            # Only announce each object type every 3 seconds
-            if obj['name'] not in self.last_announcement or \
-               current_time - self.last_announcement[obj['name']] > 3:
-                
-                message = f"{obj['name']} detected {obj['position']}"
-                
-                # Add extra warning for dangerous objects in center
-                if obj['name'] in ['car', 'truck', 'motorcycle'] and obj['position'] == 'center':
-                    message = f"WARNING! {message}"
-                
-                # Queue message for TTS thread
-                self.tts_queue.put(message)
-                self.last_announcement[obj['name']] = current_time
-
 def main():
-    # Initialize system
     assistant = VisionAssistant()
     cap = cv2.VideoCapture(0)
-    
-    # Lower resolution for better performance
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
     
-    # Frame processing control
     frame_count = 0
-    process_every_n_frames = 3  # Only process every 3rd frame
+    process_every_n_frames = 3  # Process every 3rd frame
     
     while True:
         ret, frame = cap.read()
         if not ret:
             break
             
-        # Process frame if it's time
         if frame_count % process_every_n_frames == 0:
             processed_frame = assistant.process_frame(frame)
         else:
@@ -202,14 +188,10 @@ def main():
             
         frame_count += 1
         
-        # Display output
         cv2.imshow('Prototype', processed_frame)
-        
-        # Check for quit command
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
     
-    # Cleanup
     cap.release()
     cv2.destroyAllWindows()
 
