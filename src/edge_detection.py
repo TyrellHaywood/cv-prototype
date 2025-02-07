@@ -28,15 +28,17 @@ class EdgeDetector:
 
             # Show edge overlay only if if enabled
             if show_overlay:
-                red_overlay = np.zeros_like(edges, dtype=np.uint8)
+                red_overlay = np.zeros_like(frame, dtype=np.uint8)
                 red_overlay[:] = (0, 0, 255)
-                edges = cv2.addWeighted(edges, 0.6, red_overlay, 0.4, 0)
+                frame = cv2.addWeighted(frame, 0.6, red_overlay, 0.4, 0)
 
-            # Apply only on strong edges
-            mask = cv2.cvtColor(edges, cv2.COLOR_BGR2GRAY) > 50
-            frame[mask] = cv2.addWeighted(frame, 0.4, red_overlay, 0.6, 0)[mask]
+            # # Apply only on strong edges
+            # mask = cv2.cvtColor(edges, cv2.COLOR_BGR2GRAY) > 50
+            # frame[mask] = cv2.addWeighted(frame, 0.4, red_overlay, 0.6, 0)[mask]
 
             if (current_time - tts.last_alert > 5) and tts_enabled:
                 tts.queue_message("Obstruction ahead")
                 tts.last_alert = current_time
                 self.edge_alert_counter = 0  # Reset
+
+        return frame # Return the modified frame

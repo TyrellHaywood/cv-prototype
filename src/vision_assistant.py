@@ -17,12 +17,13 @@ class VisionAssistant:
 
         # Object detection
         detected_objects = self.detector.detect_objects(frame, show_bboxes)
-        self.tts.handle_announcements(detected_objects)
+        if tts_enabled:
+            self.tts.handle_announcements(detected_objects)
 
-        # Edge detection & obstruction warnings
+        # Edge detection
         edges = self.edge_detector.detect_edges(frame)
-        self.edge_detector.detect_obstructions(frame, edges, current_time, self.tts, show_overlay)
 
-        # Merge edges into frame
-        frame = cv2.addWeighted(frame, 0.8, edges, 0.2, 0)
-        return frame
+        # Detect obstructions and update frame ✅
+        frame = self.edge_detector.detect_obstructions(frame, edges, current_time, self.tts, show_overlay, tts_enabled)
+
+        return frame  # ✅ Make sure frame is updated
