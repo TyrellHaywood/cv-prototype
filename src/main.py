@@ -176,10 +176,16 @@ class VisionAssistant:
             self.edge_alert_counter = 0  # Reset if obstruction disappears
 
         # Announce only if obstruction is seen for multiple consecutive frames
-        if self.edge_alert_counter >= self.edge_alert_threshold and (current_time - self.last_edge_alert > 5):
-            self.tts_queue.put("Obstruction ahead")
-            self.last_edge_alert = current_time
-            self.edge_alert_counter = 0  # Reset after announcement
+        
+        if self.edge_alert_counter >= self.edge_alert_threshold:
+            red_overlay = np.zeros_like(edges, dtype=np.uint8) # Create a red overlay for detected obstructions
+            red_overlay[:] = (0, 0, 255)  # Red color (BGR format)
+            edges = cv2.addWeighted(edges, 0.6, red_overlay, 0.4, 0)  # Blend with 40% transparency
+
+            if current_time - self.last_edge_alert > 5:
+                self.tts_queue.put("Obstruction ahead")
+                self.last_edge_alert = current_time
+                self.edge_alert_counter = 0  # Reset after announcement
 
 def main():
     assistant = VisionAssistant()
