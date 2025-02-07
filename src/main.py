@@ -36,6 +36,9 @@ def main():
         elif key == ord('o'):  # Toggle Red Overlay for Obstructions
             show_obstruction_highlight = not show_obstruction_highlight
             print(f"Obstruction Highlight {'ON' if show_obstruction_highlight else 'OFF'}")
+        elif key == ord('t'):  # Toggle TTS
+            tts_enabled = not tts_enabled
+            print(f"TTS {'ON' if tts_enabled else 'OFF'}")
 
     cap.release()
     cv2.destroyAllWindows()

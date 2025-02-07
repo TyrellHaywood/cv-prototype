@@ -11,7 +11,7 @@ class VisionAssistant:
         self.tts = SpeechProcessor()
         self.last_edge_alert = 0
 
-    def process_frame(self, frame, show_bboxes=True, show_overlay=True):
+    def process_frame(self, frame, show_bboxes=True, show_overlay=True, tts_enabled=True):
         """Handles frame processing: object detection, edge detection, and speech feedback."""
         current_time = time.time()
 
