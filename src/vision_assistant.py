@@ -23,7 +23,7 @@ class VisionAssistant:
         # Edge detection
         edges = self.edge_detector.detect_edges(frame)
 
-        # Detect obstructions and update frame ✅
+        # Detect obstructions and update frame 
         frame = self.edge_detector.detect_obstructions(frame, edges, current_time, self.tts, show_overlay, tts_enabled)
 
-        return frame  # ✅ Make sure frame is updated
+        return frame  # Make sure frame is updated
