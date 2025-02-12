@@ -19,7 +19,7 @@ def main():
             break
 
         if frame_count % process_every_n_frames == 0:
-            processed_frame = assistant.process_frame(frame, show_bounding_boxes)
+            processed_frame = assistant.process_frame(frame, show_bounding_boxes, show_obstruction_highlight, tts_enabled)
         else:
             processed_frame = frame
 
