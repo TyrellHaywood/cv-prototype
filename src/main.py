@@ -33,12 +33,15 @@ def main():
         elif key == ord('b'):  # Toggle Bounding Boxes
             show_bounding_boxes = not show_bounding_boxes
             print(f"Bounding Boxes {'ON' if show_bounding_boxes else 'OFF'}")
+            assistant.update_text_overlay(f"Bounding Boxes {'ON' if show_bounding_boxes else 'OFF'}")
         elif key == ord('o'):  # Toggle Red Overlay for Obstructions
             show_obstruction_highlight = not show_obstruction_highlight
             print(f"Obstruction Highlight {'ON' if show_obstruction_highlight else 'OFF'}")
+            assistant.update_text_overlay(f"Obstruction Highlight {'ON' if show_obstruction_highlight else 'OFF'}")
         elif key == ord('t'):  # Toggle TTS
             tts_enabled = not tts_enabled
             print(f"TTS {'ON' if tts_enabled else 'OFF'}")
+            assistant.update_text_overlay(f"TTS {'ON' if tts_enabled else 'OFF'}")
 
     cap.release()
     cv2.destroyAllWindows()
