@@ -28,13 +28,13 @@ class EdgeDetector:
 
             # Show edge overlay only if if enabled
             if show_overlay:
+                # create a mask from edges where the pixel intensity is high
+                mask = cv2.cvtColor(edges, cv2.COLOR_BGR2GRAY) > 50  # Threshold to filter out weak edges
                 red_overlay = np.zeros_like(frame, dtype=np.uint8)
-                red_overlay[:] = (0, 0, 255)
-                frame = cv2.addWeighted(frame, 0.6, red_overlay, 0.4, 0)
-
-            # # Apply only on strong edges
-            # mask = cv2.cvtColor(edges, cv2.COLOR_BGR2GRAY) > 50
-            # frame[mask] = cv2.addWeighted(frame, 0.4, red_overlay, 0.6, 0)[mask]
+                red_overlay[:] = (0, 0, 255)  # Red color
+                
+                # apply the red overlay only on edge regions
+                frame[mask] = cv2.addWeighted(frame, 0.5, red_overlay, 0.5, 0)[mask]
 
             if (current_time - tts.last_alert > 5) and tts_enabled:
                 tts.queue_message("Obstruction ahead")

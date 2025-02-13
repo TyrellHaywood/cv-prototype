@@ -6,7 +6,7 @@ def main():
     cap = cv2.VideoCapture(0)
 
     frame_count = 0
-    process_every_n_frames = 3
+    process_every_n_frames = 1
 
     # Setting states of visual feedback
     show_bounding_boxes = True
